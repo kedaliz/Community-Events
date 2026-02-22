@@ -28,7 +28,6 @@ try {
 }
 
 // --- API Routes ---
-// Notice: We are using simple strings with no regex/special characters
 
 app.get('/api/events', async (req, res) => {
   try {
@@ -66,7 +65,8 @@ app.patch('/api/events/:id', async (req, res) => {
   res.status(200).send();
 });
 
-app.post('/api/events/:id/rsvp', async (req, res) => {
+// Changed to a simpler sub-route to avoid index issues
+app.post('/api/rsvp/:id', async (req, res) => {
   if (!ObjectId.isValid(req.params.id)) return res.status(400).send();
   await db.collection('events').updateOne({ _id: new ObjectId(req.params.id) }, { $inc: { numberOfAttendees: 1 } });
   res.status(200).send();
@@ -74,15 +74,14 @@ app.post('/api/events/:id/rsvp', async (req, res) => {
 
 // --- FRONTEND SERVING ---
 
-// 1. Static files
 app.use(express.static(path.join(__dirname, '..', 'client', 'dist')));
 
-// 2. The Wildcard - Using the "named parameter" fix
-app.get('/:slug*', (req, res) => {
+// THE FIX: Use a Regex literal (no quotes) instead of a string.
+// This bypasses the path-to-regexp library error entirely.
+app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'client', 'dist', 'index.html'));
 });
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
-//ATTEMPT 10 - STABILIZED ROUTES
