@@ -53,10 +53,9 @@ export default function Home() {
 
   return (
     <>
-
-      <div className="container mx-auto px-4 md:px-8 py-6">
+      <div className="container mx-auto px-4 md:px-8 py-10">
         {isOffHomePath && (
-          <div className="mb-4">
+          <div className="mb-6">
             <button
               onClick={() => {
                 if (canGoBack) {
@@ -65,19 +64,19 @@ export default function Home() {
                 }
                 window.location.assign("/");
               }}
-              className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-900"
+              className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium transition"
             >
-              Back
+              ← Back
             </button>
           </div>
         )}
-        <h1 className="text-4xl font-bold font-sans text-gray-900 text-center mt-5 mb-6">
-          <a href="/" className="hover:underline hover:decoration-blue-600">Community Events</a>
-          {filter && <span className="text-blue-600"> — {filter}</span>}
+        <h1 className="text-5xl font-bold text-gray-900 text-center mt-8 mb-2">
+          <a href="/" className="hover:text-blue-600 transition">Community Events</a>
         </h1>
+        <p className="text-center text-gray-600 mb-8">Discover and connect with campus events</p>
+        {filter && <p className="text-center text-blue-600 font-semibold mb-6">Viewing {filter} Events</p>}
 
-
-        <div className="flex flex-col md:flex-row md:justify-between items-center gap-4 mb-6">
+        <div className="flex flex-col md:flex-row md:justify-center items-center gap-4 mb-10">
           <Filters categories={categories}
             currentFilter={filter}
             onFilterChange={handleFilterChange} />
@@ -85,16 +84,15 @@ export default function Home() {
           {/* search */}
           <input
             type="text"
-            placeholder="Search"
+            placeholder="Search events..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="border px-4 py-2 rounded-lg w-1/3 md:max-w-xs ml-auto"
+            className="border border-gray-300 px-4 py-2.5 rounded-lg w-full md:w-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
 
-
         {/* Event Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {events.map((evt) => (
             <EventCard key={evt._id} _id={evt._id} event={evt} name={evt.name}
               location={evt.location}

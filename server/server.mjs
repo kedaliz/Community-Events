@@ -1,7 +1,9 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import { MongoClient, ObjectId } from 'mongodb';
+
+dotenv.config({ path: '../.env' });
 const port = process.env.PORT || 8080;
 const app = express();
 app.use(cors());
@@ -17,7 +19,7 @@ app.use((req, res, next) => {
 
 
 // Connect to MongoDB
-const client = new MongoClient('mongodb://localhost:27017');
+const client = new MongoClient(process.env.ATLAS_URI);
 const conn = await client.connect();
 const db = conn.db('app');
 
