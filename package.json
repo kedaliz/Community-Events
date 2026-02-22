@@ -1,0 +1,19 @@
+{
+  "name": "info2310-project2",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"client,server\" -c \"blue.bold,green.bold\" \"npm run dev --workspace=client\" \"npm run dev --workspace=server\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "axios": "^1.9.0",
+    "debounce": "^2.2.0",
+    "use-debounce": "^10.0.4"
+  }
+}
