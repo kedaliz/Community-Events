@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 // Check if the URI is actually loading
 console.log("CHECKING CONNECTION STRING:", process.env.ATLAS_URI ? "FOUND" : "NOT FOUND");
 
-const port = process.env.PORT || 10000; // Render usually uses 10000
+const port = process.env.PORT || 10000;
 const app = express();
 
 app.use(cors());
@@ -40,13 +40,17 @@ try {
 // --- API Routes ---
 
 app.get('/api/events', async (req, res) => {
-  const { category, search } = req.query;
-  const query = {};
-  if (category) query.category = category;
-  if (search) query.$text = { $search: search };
+  try {
+    const { category, search } = req.query;
+    const query = {};
+    if (category) query.category = category;
+    if (search) query.$text = { $search: search };
 
-  const events = await db.collection('events').find(query).toArray();
-  res.status(200).json(events);
+    const events = await db.collection('events').find(query).toArray();
+    res.status(200).json(events);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/events/:id', async (req, res) => {
@@ -89,7 +93,7 @@ app.patch('/api/events/:id', async (req, res) => {
 
 app.post('/api/events/:id/rsvp', async (req, res) => {
   if (!ObjectId.isValid(req.params.id)) return res.status(400).send();
-  const result = await db.collection('events').updateOne({ _id: new ObjectId(req.params.id) }, { $inc: { numberOfAttendees: 1 } });
+  await db.collection('events').updateOne({ _id: new ObjectId(req.params.id) }, { $inc: { numberOfAttendees: 1 } });
   res.status(200).json({ message: 'RSVP successful' });
 });
 
@@ -103,13 +107,12 @@ app.post('/api/events/:id/cancel-rsvp', async (req, res) => {
 
 // --- SERVE FRONTEND ---
 
-// 1. Tell Express to serve the static files from the 'client/dist' folder
-app.use(express.static(path.join(__dirname, 'client', 'dist')));
+// Use '..' to go up from 'server' folder to find 'client/dist'
+app.use(express.static(path.join(__dirname, '..', 'client', 'dist')));
 
-// 2. Handle any requests that don't match the API routes by sending the index.html
-// This allows React Router to handle page navigation
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
+// The '/*' wildcard ensures Express 5.x/path-to-regexp doesn't throw errors
+app.get('/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'client', 'dist', 'index.html'));
 });
 
 // --- ERROR HANDLING ---
@@ -119,16 +122,6 @@ app.use((err, req, res, next) => {
   res.status(500).send("Internal Server Error");
 });
 
-// Start server
 const server = app.listen(port, () => {
   console.log(`app listening on port ${port}`);
-});
-
-server.on('error', (error) => {
-  if (error.code === 'EADDRINUSE') {
-    console.error(`error: port ${port} is already in use!`);
-    process.exit(1);
-  } else {
-    console.error('Server error:', error);
-  }
 });
