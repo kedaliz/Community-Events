@@ -2,11 +2,17 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { MongoClient, ObjectId } from 'mongodb';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// --- Helpers for ESM (needed for serving static files) ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Check if the URI is actually loading
 console.log("CHECKING CONNECTION STRING:", process.env.ATLAS_URI ? "FOUND" : "NOT FOUND");
 
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 10000; // Render usually uses 10000
 const app = express();
 
 app.use(cors());
@@ -28,175 +34,94 @@ try {
   console.log("✅ Connected to MongoDB Atlas");
 } catch (err) {
   console.error("❌ MongoDB Connection Error:", err.message);
-  // If we can't connect, we stop the server because the routes won't work anyway
   process.exit(1);
 }
 
 // --- API Routes ---
 
-// GET all events (with optional category/search)
 app.get('/api/events', async (req, res) => {
   const { category, search } = req.query;
   const query = {};
-
-  if (category) {
-    query.category = category;
-  }
-
-  if (search) {
-    query.$text = { $search: search };
-  }
+  if (category) query.category = category;
+  if (search) query.$text = { $search: search };
 
   const events = await db.collection('events').find(query).toArray();
   res.status(200).json(events);
 });
 
-// GET single event by ID
 app.get('/api/events/:id', async (req, res) => {
   const eventId = req.params.id;
-  if (!ObjectId.isValid(eventId)) {
-    return res.status(400).json({ error: 'Invalid ObjectId format' });
-  }
+  if (!ObjectId.isValid(eventId)) return res.status(400).json({ error: 'Invalid ID' });
 
   const event = await db.collection('events').findOne({ _id: new ObjectId(eventId) });
-  if (event) {
-    res.status(200).json(event);
-  } else {
-    res.status(404).json({ error: 'Event not found' });
-  }
+  event ? res.status(200).json(event) : res.status(404).json({ error: 'Event not found' });
 });
 
-// DELETE an event
 app.delete('/api/events/:id', async (req, res) => {
   const eventId = req.params.id;
-  if (!ObjectId.isValid(eventId)) {
-    return res.status(400).json({ error: 'Invalid ObjectId format' });
-  }
+  if (!ObjectId.isValid(eventId)) return res.status(400).json({ error: 'Invalid ID' });
 
   const result = await db.collection('events').deleteOne({ _id: new ObjectId(eventId) });
-
-  if (result.deletedCount === 1) {
-    res.status(200).json({ message: 'Event deleted successfully' });
-  } else {
-    res.status(404).json({ error: 'Event not found' });
-  }
+  result.deletedCount === 1 ? res.status(200).json({ message: 'Deleted' }) : res.status(404).send();
 });
 
-// POST a new event
 app.post('/api/events', async (req, res) => {
   const { name, description, location, attendees, date, category } = req.body;
-
-  const newEvent = {
-    name,
-    description,
-    location,
-    attendees,
-    date,
-    category,
-    numberOfAttendees: 0 // Initialize to 0
-  };
-
+  const newEvent = { name, description, location, attendees, date, category, numberOfAttendees: 0 };
   const result = await db.collection('events').insertOne(newEvent);
   res.status(201).json({ _id: result.insertedId, ...newEvent });
 });
 
-// PUT (Replace) an event
 app.put('/api/events/:id', async (req, res) => {
-  if (!ObjectId.isValid(req.params.id)) {
-    return res.status(400).json({ error: 'Invalid ID' });
-  }
-  
+  if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'Invalid ID' });
   const id = new ObjectId(req.params.id);
   const updatedEvent = req.body;
-  delete updatedEvent._id; // Ensure we don't try to overwrite the immutable _id field
-
+  delete updatedEvent._id;
   const result = await db.collection('events').replaceOne({ _id: id }, updatedEvent);
-
-  if (result.matchedCount === 0) {
-    return res.status(404).end();
-  }
-  res.status(200).end();
+  result.matchedCount === 0 ? res.status(404).end() : res.status(200).end();
 });
 
-// PATCH (Update) an event
 app.patch('/api/events/:id', async (req, res) => {
-  if (!ObjectId.isValid(req.params.id)) {
-    return res.status(400).json({ error: 'Invalid ID' });
-  }
-
-  const id = new ObjectId(req.params.id);
-  const updates = req.body;
-
-  const result = await db.collection('events').updateOne(
-    { _id: id },
-    { $set: updates }
-  );
-
-  if (result.matchedCount === 0) {
-    return res.status(404).json({ error: 'Event not found' });
-  }
-  res.status(200).send();
+  if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'Invalid ID' });
+  const result = await db.collection('events').updateOne({ _id: new ObjectId(req.params.id) }, { $set: req.body });
+  result.matchedCount === 0 ? res.status(404).json({ error: 'Not found' }) : res.status(200).send();
 });
 
-// POST RSVP (Increment)
 app.post('/api/events/:id/rsvp', async (req, res) => {
-  const { id } = req.params;
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ error: 'Invalid event ID format' });
-  }
-
-  const result = await db.collection('events').updateOne(
-    { _id: new ObjectId(id) },
-    { $inc: { numberOfAttendees: 1 } }
-  );
-
-  if (result.matchedCount === 0) {
-    return res.status(404).json({ error: 'Event not found' });
-  }
+  if (!ObjectId.isValid(req.params.id)) return res.status(400).send();
+  const result = await db.collection('events').updateOne({ _id: new ObjectId(req.params.id) }, { $inc: { numberOfAttendees: 1 } });
   res.status(200).json({ message: 'RSVP successful' });
 });
 
-// POST Cancel RSVP (Decrement)
 app.post('/api/events/:id/cancel-rsvp', async (req, res) => {
-  const { id } = req.params;
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ error: 'Invalid event ID format' });
-  }
-
-  const event = await db.collection('events').findOne({ _id: new ObjectId(id) });
-
-  if (!event) {
-    return res.status(404).json({ error: 'Event not found' });
-  }
-
-  if ((event.numberOfAttendees || 0) <= 0) {
-    return res.status(400).json({ error: 'No RSVPs to cancel' });
-  }
-
-  await db.collection('events').updateOne(
-    { _id: new ObjectId(id) },
-    { $inc: { numberOfAttendees: -1 } }
-  );
-
+  if (!ObjectId.isValid(req.params.id)) return res.status(400).send();
+  const event = await db.collection('events').findOne({ _id: new ObjectId(req.params.id) });
+  if (!event || (event.numberOfAttendees || 0) <= 0) return res.status(400).send();
+  await db.collection('events').updateOne({ _id: new ObjectId(req.params.id) }, { $inc: { numberOfAttendees: -1 } });
   res.sendStatus(204);
 });
 
-// --- Middleware ---
+// --- SERVE FRONTEND ---
 
-// 404 - not found
-app.use((req, res, next) => {
-  res.status(404).json({ message: 'resource ' + req.url + ' not found' });
+// 1. Tell Express to serve the static files from the 'client/dist' folder
+app.use(express.static(path.join(__dirname, 'client', 'dist')));
+
+// 2. Handle any requests that don't match the API routes by sending the index.html
+// This allows React Router to handle page navigation
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
 });
 
-// 500 - Any server error (Your global handler)
+// --- ERROR HANDLING ---
+
 app.use((err, req, res, next) => {
   console.error("Global Error Handler:", err);
-  res.status(500).send();
+  res.status(500).send("Internal Server Error");
 });
 
 // Start server
 const server = app.listen(port, () => {
-  console.log(`app listening on http://localhost:${port}/`);
+  console.log(`app listening on port ${port}`);
 });
 
 server.on('error', (error) => {
