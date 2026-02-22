@@ -4,6 +4,7 @@ import cors from 'cors';
 import { MongoClient, ObjectId } from 'mongodb';
 
 dotenv.config({ path: '../.env' });
+console.log("CHECKING CONNECTION STRING:", process.env.ATLAS_URI);
 const port = process.env.PORT || 8080;
 const app = express();
 app.use(cors());
