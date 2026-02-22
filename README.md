@@ -1,6 +1,6 @@
 # Community Events Platform 🌐
 
-### 👤 Makeda [Your Last Name]
+### 👤 Makeda-Elizabeth Cabey
 **Information Science Student | UX/UI Design & Tech Policy** *Building at the intersection of functional code, inclusive design, and ethical policy.*
 
 ---
