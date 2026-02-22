@@ -4,12 +4,10 @@ import cors from 'cors';
 import { MongoClient, ObjectId } from 'mongodb';
 import path from 'path';
 import { fileURLToPath } from 'url';
-//Deploy Attempt 2: 
-// --- Helpers for ESM (needed for serving static files) ---
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Check if the URI is actually loading
 console.log("CHECKING CONNECTION STRING:", process.env.ATLAS_URI ? "FOUND" : "NOT FOUND");
 
 const port = process.env.PORT || 10000;
@@ -18,13 +16,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Log every request to the console
 app.use((req, res, next) => {
   console.log('>', req.method, req.path);
   next();
 });
 
-// --- MongoDB Connection Logic ---
+// --- MongoDB Connection ---
 const client = new MongoClient(process.env.ATLAS_URI);
 let db;
 
@@ -38,14 +35,12 @@ try {
 }
 
 // --- API Routes ---
-
 app.get('/api/events', async (req, res) => {
   try {
     const { category, search } = req.query;
     const query = {};
     if (category) query.category = category;
     if (search) query.$text = { $search: search };
-
     const events = await db.collection('events').find(query).toArray();
     res.status(200).json(events);
   } catch (err) {
@@ -56,7 +51,6 @@ app.get('/api/events', async (req, res) => {
 app.get('/api/events/:id', async (req, res) => {
   const eventId = req.params.id;
   if (!ObjectId.isValid(eventId)) return res.status(400).json({ error: 'Invalid ID' });
-
   const event = await db.collection('events').findOne({ _id: new ObjectId(eventId) });
   event ? res.status(200).json(event) : res.status(404).json({ error: 'Event not found' });
 });
@@ -64,7 +58,6 @@ app.get('/api/events/:id', async (req, res) => {
 app.delete('/api/events/:id', async (req, res) => {
   const eventId = req.params.id;
   if (!ObjectId.isValid(eventId)) return res.status(400).json({ error: 'Invalid ID' });
-
   const result = await db.collection('events').deleteOne({ _id: new ObjectId(eventId) });
   result.deletedCount === 1 ? res.status(200).json({ message: 'Deleted' }) : res.status(404).send();
 });
@@ -106,22 +99,24 @@ app.post('/api/events/:id/cancel-rsvp', async (req, res) => {
 });
 
 // --- SERVE FRONTEND ---
-
-// Use '..' to go up from 'server' folder to find 'client/dist'
 app.use(express.static(path.join(__dirname, '..', 'client', 'dist')));
 
-// The '/*' wildcard ensures Express 5.x/path-to-regexp doesn't throw errors
-app.get('/*', (req, res) => {
+// FIX: Using /:any* instead of /* to satisfy Express 5.0 parameter rules
+app.get('/:any*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'client', 'dist', 'index.html'));
 });
 
 // --- ERROR HANDLING ---
+// Removed the URL parameter here to avoid regexp errors
+app.use((req, res) => {
+  res.status(404).json({ message: 'resource not found' });
+});
 
 app.use((err, req, res, next) => {
   console.error("Global Error Handler:", err);
   res.status(500).send("Internal Server Error");
 });
 
-const server = app.listen(port, () => {
+app.listen(port, () => {
   console.log(`app listening on port ${port}`);
 });
