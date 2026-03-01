@@ -6,6 +6,8 @@ import EventCard from "./components/EventCard"
 import Filters from "./components/Filters"
 import Error from "./components/Error"
 import LoadingSpinner from "./components/LoadingSpinner"
+import RequestEventModal from "./components/RequestEventModal"
+import Toast from "./components/Toast"
 
 export default function Home() {
   const categories = ["Social", "Festivities", "Networking"];
@@ -18,6 +20,11 @@ export default function Home() {
   const [error, setError] = useState(null);
   const isOffHomePath = typeof window !== "undefined" && window.location.pathname !== "/";
   const canGoBack = typeof window !== "undefined" && window.history.length > 1;
+
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState("success");
 
 
   const fetchEvents = () => {
@@ -40,6 +47,13 @@ export default function Home() {
 
   const handleFilterChange = (category) => {
     setFilter(prev => (prev === category ? undefined : category));
+  };
+
+  const handleRequestSuccess = (message, type = "success") => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    fetchEvents(); // Refresh events list
   };
 
   if (loading) {
@@ -89,6 +103,14 @@ export default function Home() {
             onChange={e => setSearchQuery(e.target.value)}
             className="border border-gray-300 px-4 py-2.5 rounded-lg w-full md:w-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+
+          {/* Request Event Button */}
+          <button
+            onClick={() => setIsRequestModalOpen(true)}
+            className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-lg shadow-md transition whitespace-nowrap"
+          >
+            + Request Event
+          </button>
         </div>
 
         {/* Event Cards */}
@@ -104,6 +126,19 @@ export default function Home() {
           ))}
         </div>
       </div>
+
+      <RequestEventModal
+        isOpen={isRequestModalOpen}
+        closeModal={() => setIsRequestModalOpen(false)}
+        onSuccess={handleRequestSuccess}
+      />
+
+      <Toast
+        message={toastMessage}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+        type={toastType}
+      />
     </>
   )
 }

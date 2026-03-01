@@ -65,11 +65,33 @@ app.patch('/api/events/:id', async (req, res) => {
   res.status(200).send();
 });
 
-// Changed to a simpler sub-route to avoid index issues
-app.post('/api/rsvp/:id', async (req, res) => {
-  if (!ObjectId.isValid(req.params.id)) return res.status(400).send();
-  await db.collection('events').updateOne({ _id: new ObjectId(req.params.id) }, { $inc: { numberOfAttendees: 1 } });
-  res.status(200).send();
+// RSVP routes
+app.post('/api/events/:id/rsvp', async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).send();
+    const result = await db.collection('events').findOneAndUpdate(
+      { _id: new ObjectId(req.params.id) },
+      { $inc: { numberOfAttendees: 1 } },
+      { returnDocument: 'after' }
+    );
+    res.status(200).json({ numberOfAttendees: result.numberOfAttendees });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/events/:id/cancel-rsvp', async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).send();
+    const result = await db.collection('events').findOneAndUpdate(
+      { _id: new ObjectId(req.params.id) },
+      { $inc: { numberOfAttendees: -1 } },
+      { returnDocument: 'after' }
+    );
+    res.status(200).json({ numberOfAttendees: result.numberOfAttendees });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // --- FRONTEND SERVING ---
